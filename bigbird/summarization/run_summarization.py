@@ -173,32 +173,11 @@ def input_fn_builder(data_dir, vocab_model_file, max_encoder_length,
     """The actual input function."""
     batch_size = params["batch_size"]
 
-    # Load dataset and handle tfds separately
+    # Load dataset
     split = "train" if is_training else "validation"
     if "tfds://" == data_dir[:7]:
       d = tfds.load(data_dir[7:], split=split, data_dir=tmp_dir,
                     shuffle_files=is_training, as_supervised=True)
-    else:
-      input_files = tf.io.gfile.glob(
-          os.path.join(data_dir, "{}.tfrecord*".format(split)))
-
-      # For training, we want a lot of parallel reading and shuffling.
-      # For eval, we want no shuffling and parallel reading doesn't matter.
-      if is_training:
-        d = tf.data.Dataset.from_tensor_slices(tf.constant(input_files))
-        d = d.shuffle(buffer_size=len(input_files))
-
-        # Non deterministic mode means that the interleaving is not exact.
-        # This adds even more randomness to the training pipeline.
-        d = d.interleave(tf.data.TFRecordDataset,
-                         deterministic=False,
-                         num_parallel_calls=tf.data.experimental.AUTOTUNE)
-      else:
-        d = tf.data.TFRecordDataset(input_files)
-
-      d = d.map(_decode_record,
-                num_parallel_calls=tf.data.experimental.AUTOTUNE,
-                deterministic=is_training)
 
     d = d.map(_tokenize_example,
               num_parallel_calls=tf.data.experimental.AUTOTUNE,
