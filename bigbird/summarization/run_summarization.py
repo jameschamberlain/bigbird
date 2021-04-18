@@ -136,38 +136,38 @@ def input_fn_builder(data_dir, vocab_model_file, max_encoder_length,
   def _decode_record(record):
     """Decodes a record to a TensorFlow example."""
     name_to_features = {
-        "document": tf.io.FixedLenFeature([], tf.string),
-        "summary": tf.io.FixedLenFeature([], tf.string),
+        "context": tf.io.FixedLenFeature([], tf.string),
+        "question": tf.io.FixedLenFeature([], tf.string),
     }
     example = tf.io.parse_single_example(record, name_to_features)
-    return example["document"], example["summary"]
+    return example["context"], example["question"]
 
-  def _tokenize_example(document, summary):
+  def _tokenize_example(context, question):
     tokenizer = tft.SentencepieceTokenizer(
         model=tf.io.gfile.GFile(vocab_model_file, "rb").read())
     if substitute_newline:
-      document = tf.strings.regex_replace(document, "\n", substitute_newline)
+      context = tf.strings.regex_replace(context, "\n", substitute_newline)
     # Remove space before special tokens.
-    document = tf.strings.regex_replace(document, r" ([<\[]\S+[>\]])", b"\\1")
-    document_ids = tokenizer.tokenize(document)
-    if isinstance(document_ids, tf.RaggedTensor):
-      document_ids = document_ids.to_tensor(0)
-    document_ids = document_ids[:max_encoder_length]
+    context = tf.strings.regex_replace(context, r" ([<\[]\S+[>\]])", b"\\1")
+    context_ids = tokenizer.tokenize(context)
+    if isinstance(context_ids, tf.RaggedTensor):
+      context_ids = context_ids.to_tensor(0)
+    context_ids = context_ids[:max_encoder_length]
 
     # Remove newline optionally
     if substitute_newline:
-      summary = tf.strings.regex_replace(summary, "\n", substitute_newline)
+      question = tf.strings.regex_replace(question, "\n", substitute_newline)
     # Remove space before special tokens.
-    summary = tf.strings.regex_replace(summary, r" ([<\[]\S+[>\]])", b"\\1")
-    summary_ids = tokenizer.tokenize(summary)
+    question = tf.strings.regex_replace(question, r" ([<\[]\S+[>\]])", b"\\1")
+    question_ids = tokenizer.tokenize(question)
     # Add [EOS] (1) special tokens.
     suffix = tf.constant([1])
-    summary_ids = tf.concat([summary_ids, suffix], axis=0)
-    if isinstance(summary_ids, tf.RaggedTensor):
-      summary_ids = summary_ids.to_tensor(0)
-    summary_ids = summary_ids[:max_decoder_length]
+    question_ids = tf.concat([question_ids, suffix], axis=0)
+    if isinstance(question_ids, tf.RaggedTensor):
+      question_ids = question_ids.to_tensor(0)
+    question_ids = question_ids[:max_decoder_length]
 
-    return document_ids, summary_ids
+    return context_ids, question_ids
 
   def input_fn(params):
     """The actual input function."""
