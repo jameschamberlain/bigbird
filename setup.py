@@ -36,7 +36,8 @@ setuptools.setup(
     license='Apache 2.0',
     packages=[
         'bigbird', 'bigbird.core', 'bigbird.classifier',
-        'bigbird.pretrain', 'bigbird.summarization'
+        'bigbird.pretrain', 'bigbird.summarization',
+        'bigbird.question_generation'
     ],
     package_data={'bigbird': ['vocab/*']},
     scripts=[],
