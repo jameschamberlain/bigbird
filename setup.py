@@ -42,5 +42,5 @@ setuptools.setup(
     package_data={'bigbird': ['vocab/*']},
     scripts=[],
     install_requires=_REQUIREMENTS,
-    keywords='deeplearning machinelearning nlp classifier qa summarization transformer pretraining',
+    keywords='deeplearning machinelearning nlp classifier qa summarization transformer pretraining questiongeneration',
 )
