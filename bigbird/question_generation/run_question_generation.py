@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Run summarization fine-tuning for BigBird.."""
+"""Run question generation fine-tuning for BigBird.."""
 
 import os
 import time
@@ -434,7 +434,7 @@ def main(_):
 
   tf.io.gfile.makedirs(FLAGS.output_dir)
   if FLAGS.do_train:
-    flags.save(os.path.join(FLAGS.output_dir, "summarization.config"))
+    flags.save(os.path.join(FLAGS.output_dir, "question_generation.config"))
 
   model_fn = model_fn_builder(transformer_config)
   estimator = utils.get_estimator(transformer_config, model_fn)
