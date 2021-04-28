@@ -1,4 +1,4 @@
-# Copyright 2020 The BigBird Authors.
+# Copyright 2021 The BigBird Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Run question generation fine-tuning for BigBird.."""
+"""Run question generation fine-tuning for BigBird."""
 
 import os
 import time
@@ -35,7 +35,7 @@ FLAGS = flags.FLAGS
 ## Required parameters
 
 flags.DEFINE_string(
-    "data_dir", "tfds://scientific_papers/pubmed",
+    "data_dir", "tfds://sqa_qg_dataset",
     "The input data dir. Should contain the TFRecord files. "
     "Can be TF Dataset with prefix tfds://")
 
@@ -173,11 +173,32 @@ def input_fn_builder(data_dir, vocab_model_file, max_encoder_length,
     """The actual input function."""
     batch_size = params["batch_size"]
 
-    # Load dataset
+    # Load dataset and handle tfds separately
     split = "train" if is_training else "validation"
     if "tfds://" == data_dir[:7]:
       d = tfds.load(data_dir[7:], split=split, data_dir=tmp_dir,
                     shuffle_files=is_training, as_supervised=True)
+    else:
+      input_files = tf.io.gfile.glob(
+          os.path.join(data_dir, "{}.tfrecord*".format(split)))
+
+      # For training, we want a lot of parallel reading and shuffling.
+      # For eval, we want no shuffling and parallel reading doesn't matter.
+      if is_training:
+        d = tf.data.Dataset.from_tensor_slices(tf.constant(input_files))
+        d = d.shuffle(buffer_size=len(input_files))
+
+        # Non deterministic mode means that the interleaving is not exact.
+        # This adds even more randomness to the training pipeline.
+        d = d.interleave(tf.data.TFRecordDataset,
+                         deterministic=False,
+                         num_parallel_calls=tf.data.experimental.AUTOTUNE)
+      else:
+        d = tf.data.TFRecordDataset(input_files)
+
+      d = d.map(_decode_record,
+                num_parallel_calls=tf.data.experimental.AUTOTUNE,
+                deterministic=is_training)
 
     d = d.map(_tokenize_example,
               num_parallel_calls=tf.data.experimental.AUTOTUNE,
@@ -278,7 +299,7 @@ def model_fn_builder(transformer_config):
           mode=mode,
           loss=total_loss,
           train_op=train_op,
-          host_call=utils.add_scalars_to_summary(
+          host_call=utils.add_scalars_to_question(
               transformer_config["output_dir"],
               {"learning_rate": learning_rate}))
 
@@ -375,7 +396,6 @@ def model_fn_builder(transformer_config):
 
 def padded_cross_entropy_loss(logits, labels, smoothing, vocab_size):
   """Calculate cross entropy loss while ignoring padding.
-
   Args:
     logits: Tensor of size [batch_size, length_logits, vocab_size]
     labels: Tensor of size [batch_size, length_labels]
@@ -438,6 +458,7 @@ def main(_):
 
   model_fn = model_fn_builder(transformer_config)
   estimator = utils.get_estimator(transformer_config, model_fn)
+  tmp_data_dir = os.path.join(FLAGS.output_dir, "tfds")
 
   if FLAGS.do_train:
     logging.info("***** Running training *****")
@@ -449,7 +470,7 @@ def main(_):
         max_encoder_length=FLAGS.max_encoder_length,
         max_decoder_length=FLAGS.max_decoder_length,
         substitute_newline=FLAGS.substitute_newline,
-        tmp_dir=os.path.join(FLAGS.output_dir, "tfds"),
+        tmp_dir=tmp_data_dir,
         is_training=True)
     estimator.train(input_fn=train_input_fn, max_steps=FLAGS.num_train_steps)
 
@@ -463,7 +484,7 @@ def main(_):
         max_encoder_length=FLAGS.max_encoder_length,
         max_decoder_length=FLAGS.max_decoder_length,
         substitute_newline=FLAGS.substitute_newline,
-        tmp_dir=os.path.join(FLAGS.output_dir, "tfds"),
+        tmp_dir=tmp_data_dir,
         is_training=False)
 
     # Run continuous evaluation for latest checkpoint as training progresses.

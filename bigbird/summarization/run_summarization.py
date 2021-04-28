@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Run summarization fine-tuning for BigBird.."""
+"""Run summarization fine-tuning for BigBird."""
 
 import os
 import time
