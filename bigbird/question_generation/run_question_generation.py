@@ -299,7 +299,7 @@ def model_fn_builder(transformer_config):
           mode=mode,
           loss=total_loss,
           train_op=train_op,
-          host_call=utils.add_scalars_to_question(
+          host_call=utils.add_scalars_to_summary(
               transformer_config["output_dir"],
               {"learning_rate": learning_rate}))
 
