@@ -174,7 +174,7 @@ def input_fn_builder(data_dir, vocab_model_file, max_encoder_length,
     batch_size = params["batch_size"]
 
     # Load dataset and handle tfds separately
-    split = "train" if is_training else "validation"
+    split = "train" if is_training else "test" # CHANGE BACK TO VALIDATION WHEN NOT TESTING!
     if "tfds://" == data_dir[:7]:
       d = tfds.load(data_dir[7:], split=split, data_dir=tmp_dir,
                     shuffle_files=is_training, as_supervised=True)
